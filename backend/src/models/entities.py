@@ -53,3 +53,34 @@ class Audit(Base):
     action: Mapped[str] = mapped_column(String(40))
     subject: Mapped[str] = mapped_column(String(100))
     recorded_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class SamplingPlan(Base):
+    __tablename__ = 'audit_sampling_plans'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(100))
+    campaign: Mapped[str] = mapped_column(String(32), index=True)
+    status: Mapped[str] = mapped_column(String(16), index=True)
+    seed: Mapped[int]
+    confidence: Mapped[float]
+    locked_snapshot: Mapped[dict] = mapped_column(JSON)
+    strata: Mapped[list] = mapped_column(JSON)
+    result: Mapped[dict | None] = mapped_column(JSON)
+    author_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
+    note: Mapped[str] = mapped_column(Text, default='')
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class RecountReturn(Base):
+    __tablename__ = 'audit_recount_returns'
+    __table_args__ = (UniqueConstraint('plan_id', 'segment_code', name='uq_recount_segment'),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    plan_id: Mapped[int] = mapped_column(ForeignKey('audit_sampling_plans.id'), index=True)
+    segment_code: Mapped[str] = mapped_column(ForeignKey('segments.code'))
+    state: Mapped[str] = mapped_column(String(12), index=True)
+    total_found: Mapped[int | None]
+    asset_codes: Mapped[list] = mapped_column(JSON)
+    missing_locked: Mapped[list] = mapped_column(JSON)
+    reason: Mapped[str] = mapped_column(Text, default='')
+    reporter: Mapped[str] = mapped_column(String(120), default='')
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())

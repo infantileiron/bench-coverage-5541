@@ -13,3 +13,16 @@ class Status(StrEnum):
     COMPLETED = 'completed'
     FAILED = 'failed'
     PUBLISHED = 'published'
+
+
+class SamplingStatus(StrEnum):
+    DRAFT = 'draft'
+    ESTIMATED = 'estimated'
+    INCONCLUSIVE = 'inconclusive'
+
+
+class RecountState(StrEnum):
+    PENDING = 'pending'
+    COUNTED = 'counted'
+    BLOCKED = 'blocked'
+    SUSPENDED = 'suspended'

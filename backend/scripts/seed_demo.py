@@ -3,7 +3,9 @@ from sqlalchemy import func, select
 
 from src.config.database import Base, Session, engine
 from src.constants.enums import Role, Status
-from src.models.entities import Analysis, Capture, Segment, User
+from src.models.entities import Analysis, Capture, RecountReturn, SamplingPlan, Segment, User
+from src.services import audit_sampling as sampling
+from src.schemas.business import BlockInput, RecountInput, SamplingInput
 from src.services.business import record
 from src.utils.security import password_hash
 
@@ -42,6 +44,22 @@ def seed():
                       'segments':[record(row) for row in db.scalars(select(Segment).order_by(Segment.code))]}
             snapshot = [record(row) for row in db.scalars(select(Capture).where(Capture.campaign == CODE))]
             db.add(Analysis(title=title, status=Status.QUEUED, author_id=owner.id, parameters=params, snapshot=snapshot, result=None))
+        db.flush()
+        demo_title = '复点抽样 · 两岸全数核对'
+        if not db.scalar(select(SamplingPlan).where(SamplingPlan.title == demo_title)):
+            owner = db.scalar(select(User).where(User.role == Role.ANALYST))
+            plan = sampling.create_plan(db, SamplingInput(
+                title=demo_title, campaign=CODE, sample_sizes={'南岸': 1, '北岸': 2},
+                confidence=0.9, seed=20261124), owner)
+            chosen = [code for stratum in plan['strata'] for code in stratum['sample_codes']]
+            first = chosen[0]
+            locked = plan['locked_snapshot'][first]
+            sampling.submit_return(db, plan['id'], first, RecountInput(
+                total_found=len(locked), asset_codes=locked, reporter='午班养护员',
+                reason='全数复点与底册一致'), owner)
+            if len(chosen) > 1:
+                sampling.mark_blocked(db, plan['id'], chosen[1], BlockInput(
+                    reason='施工围挡封闭，人员无法进入，区段保留在样本内', reporter='午班养护员'), owner)
         db.commit()
         return {model.__tablename__: db.scalar(select(func.count()).select_from(model))
                 for model in (User, Segment, Capture, Analysis)}

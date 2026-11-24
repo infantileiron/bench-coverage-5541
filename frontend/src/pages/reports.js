@@ -2,7 +2,7 @@ import {api} from '../api/survey.js';
 import {heading} from '../components/common/layout.js';
 import {metrics} from '../components/common/metrics.js';
 import {table} from '../components/common/table.js';
-import {states} from '../constants/enums.js';
+import {states, samplingStates} from '../constants/enums.js';
 import {onForm} from '../hooks/forms.js';
 import {session} from '../stores/session.js';
 import {h} from '../utils/html.js';
@@ -10,7 +10,14 @@ import {h} from '../utils/html.js';
 export async function reports(id) {
   const list = await api.analyses();
   const run = id || list.length ? await api.analysis(id || list[0].id) : null;
+  const plans = await api.samplingPlans();
+  const latestPlan = plans.length ? await api.samplingPlan(plans[0].id) : null;
   const sidebar = `<aside class="sheet"><h2>补巡单</h2><ul class="runs">${list.map(x => `<li><a href="#reports/${x.id}">${h(x.title)}</a><span>${h(states[x.status])}</span></li>`).join('') || '<li>暂无补巡单。</li>'}</ul></aside>`;
+  const samplingPanel = latestPlan?.result ? `<section class="sheet" style="margin-bottom:1.25rem">
+      <h2>整批复点抽样 · ${h(latestPlan.title)}</h2><p class="state">${h(samplingStates[latestPlan.status])}</p>
+      ${metrics(latestPlan.result.metrics)}<p class="decision">${h(latestPlan.result.summary)}</p>
+      <h3>缺测影响</h3><ul class="notes">${latestPlan.result.missing_impact.map(x => `<li>${h(x)}</li>`).join('')}</ul>
+      <p><a href="#sampling/${latestPlan.id}">进入复点抽样查看分层结果与对账明细</a></p></section>` : '';
   let content = '<div class="empty">先在 <a href="#analyze">漏查估算</a> 锁定双轮记录快照。</div>';
   if (run) {
     const output = run.result;
@@ -28,7 +35,7 @@ export async function reports(id) {
     }
   }
   return {
-    html:heading('补巡派发','核对优先补巡范围。巡查领班签核后将派发表交给当班队伍。') + `<div class="workarea"> <section class="sheet" id="report">${content}</section>${sidebar}</div>`,
+    html:heading('补巡派发','核对优先补巡范围。巡查领班签核后将派发表交给当班队伍。') + `<div class="workarea"> <div>${samplingPanel}<section class="sheet" id="report">${content}</section></div>${sidebar}</div>`,
     bind(root, refresh, signal) {
       if (run && ['queued','running'].includes(run.status)) {
         const timer = setTimeout(refresh, 900);

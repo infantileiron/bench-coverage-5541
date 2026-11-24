@@ -10,4 +10,9 @@ export const api = {
   analysis: id => send(`/analyses/${id}`),
   publish: (id, note) => send(`/analyses/${id}/publish`, {note}),
   export: id => send(`/analyses/${id}/export`, undefined, true),
+  samplingPlans: input => send('/sampling/plans', input),
+  samplingPlan: id => send(`/sampling/plans/${id}`),
+  rerunSampling: (id, input) => send(`/sampling/plans/${id}/rerun`, input),
+  submitRecount: (id, code, input) => send(`/sampling/plans/${id}/segments/${code}/recount`, input),
+  markBlocked: (id, code, input) => send(`/sampling/plans/${id}/segments/${code}/blocked`, input),
 };
